@@ -1,0 +1,177 @@
+---
+title: "Here's How BuzzFeed News Trained A Computer To Search For Hidden Spy Planes"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(out.width="750px", dpi=300)
+```
+
+Data and [R](https://www.r-project.org/) code for the analysis supporting this [August x, 2017 BuzzFeed News post](https://www.buzzfeed.com/peteraldhous/hidden-spy-planes) on identifying candidate surveillance aircraft. Supporting files are in [this GitHub repository](https://github.com/BuzzFeedNews/2017-08-spy-plane-finder).
+
+## Data
+
+BuzzFeed News obtained more than four months of aircraft transponder detections from the plane tracking website [Flightradar24](https://www.flightradar24.com), covering August 17 to December 31, 2015 [UTC](http://www.timeanddate.com/time/aboututc.html), containing all data displayed on the site within a bounding box encompassing the continental United States, Alaska, Hawaii, and Puerto Rico.
+
+Flightradar24 receives data from its network of ground-based receivers, supplemented by a feed from ground radars provided by the Federal Aviation Administration (FAA) with a five-minute delay.
+
+After parsing from the raw files supplied by Flightradar24, the data included the following fields, for each transponder detection:
+
+- `adshex` Unique identifier for each aircraft, corresponding to its "[Mode-S](http://www.skybrary.aero/index.php/Mode_S)" code, in hexademical format.
+- `flight_id` Unique identifier for each "flight segment," in hexadecimal format. A flight segment is a continuous series of transponder detections for one aircraft. There may be more than one segment per flight, if a plane disappears from Flightradar24's coverage for a period --- for example when flying over rural areas with sparse receiver coverage. While being tracked by Fightradar24, planes were typically detected several times per minute.
+- `latitude`, `longitude` Geographic location in digital degrees.
+- `altitude` Altitude in feet.
+- `speed` Ground speed in knots.
+- `squawk` Four-digit code transmitted by the transponder.
+- `type` Aircraft manufacter and model, if identified.
+- `timestamp` Full UTC timestamp.
+- `track` Compass bearing in degrees, with 0 corresponding to north.
+
+We also calculated:
+
+- `steer` Change in compass bearing from the previous transponder detection for that aircraft; negative values indicate a turn to the left, positive values a turn to the right.
+
+## Feature engineering
+
+Using the same data, we had [previously reported](https://www.buzzfeed.com/peteraldhous/spies-in-the-skies) on flights of spy planes operated by the FBI and the Department of Homeland Security (DHS), and reasoned that it should be possible to train a machine learning algorthim to identify other aircraft performing similar surveillance, based on characteristics of the aircraft and their flight patterns.
+
+First we filtered the data to remove planes registered abroad, based on their `adshex` code, common commercial airliners, based on their `type`, and aircraft with fewer than 500 transponder detections.
+
+Then we took a random sample of 500 aircraft and calculated the following for each one:
+
+- `duration` of each flight segment recorded by Flightradar24, in minutes.
+- `boxes` Area of a rectangular bounding box drawn around each flight segment, in square kilometers.
+
+Finally, we calculated the following variables for each of the aircraft in the larger filtered dataset:
+
+- `duration1`,`duration2`,`duration3`,`duration4`,`duration5` Proportion of flight segment durations for each plane falling into each of five quantiles calculated from `duration` for the sample of 500 planes. The proportions for each aircraft must add up to 1; if the durations of flight segments for a plane closely matched those for a typical plane from the sample, these numbers would all approximate to 0.2; a plane that mostly flew very long flights would have large decimal fraction for `duration5`.
+- `boxes1`,`boxes2`,`boxes3`,`boxes4`,`boxes5` Proportion of bounding box areas for each plane falling into each of five quantiles calculated from `boxes` for the sample of 500 planes.
+- `speed1`,`speed2`,`speed3`,`speed4`,`speed5` Proportion of `speed` values recorded for the aircraft falling into each of five quantiles recorded for `speed` for the sample of 500 planes.
+- `altitude1`,`altitude2`,`altitude3`,`altitude4`,`altitude5` Proportion of `altitude` values recorded for the aircraft falling into each of five quantiles recorded for `altitude` for the sample of 500 planes.
+- `steer1`,`steer2`,`steer3`,`steer4`,`steer5`,`steer6`,`steer7`,`steer8` Proportion of `steer` values for each aircraft falling into bins set manually, after observing the distribution for the sample of 500 planes, using the breaks: -180, -25, -10, -1, 0, 1, 22, 45, 180.
+- `squawk_1` Squawk code used most commonly by the aircraft.
+- `observations` Total number of transponder detections for each plane.
+- `type` Aircraft manufacter and model, if identified, else `unknown`.
+
+The resulting data for 19,799 aircraft are in the file `planes_features.csv`.
+
+## Machine learning, using random forest algorithm
+
+For the machine learning, we selected the [random forest](http://www.datasciencecentral.com/profiles/blogs/random-forests-algorithm) algorithm, popular among data scientists for classification tasks. 
+
+As training data, drawn from `planes_features.csv`, we used 97 fixed-wing FBI and DHS planes from our previous story, given a `class` of `surveil`, and a random sample of 500 other planes, given a `class` of `other`.
+
+Data identifying these planes is in the file `train.csv`.
+
+```{r, results="hide", warning=FALSE, message=FALSE}
+# load required packages
+library(readr)
+library(dplyr)
+library(randomForest)
+
+# load planes_features data
+planes <- read_csv("data/planes_features.csv") 
+
+# convert type to integers, as new variable type2, so it can be used by the random forest algorithm
+planes <- planes %>%
+  mutate(type2=as.integer(as.factor(type)))
+
+# load training data and join to the planes_features data
+train <- read_csv("data/train.csv") %>%
+  inner_join(planes, by="adshex")
+```
+
+We then trained the random forest algorithm using this data.
+
+```{r, results="hide", warning=FALSE, message=FALSE}
+# set seed for reproducibility of model fit
+set.seed(415)
+
+# train the random forest
+fit <- randomForest(as.factor(class) ~ duration1 + duration2 + duration3 + duration4 + duration5 + boxes1 + boxes2 + boxes3 + boxes4 + boxes5 + speed1 + speed2 + speed3 + speed4 + speed5 + altitude1 + altitude2 + altitude3 + altitude4 + altitude5 + steer1 + steer2 + steer3 + steer4 + steer5 + steer6 + steer7 + steer8 + flights + squawk_1 + observations + type2, 
+                     data=train, importance=TRUE, ntree=2000)
+```
+
+One useful feature of the random forest is that it is possible to see which of the input variables are most important to the trained model. 
+
+```{r, warning=FALSE, message=FALSE}
+# look at which variables are important in model
+varImpPlot(fit)
+```
+
+This chart shows that the `steer1` and `steer2` variables, quantifying the frequency of turning hard to the left, and  `squawk_1`, the most common squawk code broadcast by a plane's transponder, were the most important.
+
+We then examined the model's performance, from its estimated errors in classifying the training data.
+
+```{r, warning=FALSE, message=FALSE}
+# look at estimated model performance
+print(fit)
+```
+
+This output shows that overall, the estimated classification error rate was 3.7%. For `other` planes, the estimated error rate was vanishingly low. However for the target `surveil` class, representing likely surveillance aircraft, the estimated error rate was 20.6%. We experimented with simplifying the model, removing some of the less important import variables, but that did not appreciably improve its performance.
+
+We then used the model to classify all of the planes in the data, after first removing the planes used in training data and a list of known federal law enforcement aircraft, which are in the file `feds.csv`.
+
+```{r, results="hide", warning=FALSE, message=FALSE}
+# load data on known federal planes
+feds <- read_csv("data/feds.csv")
+
+# create dataset to classify
+classify <- anti_join(planes, train) %>%
+  anti_join(feds)
+
+# run the random forest model on that dataset
+prediction <- predict(fit, classify)
+
+# create data frame with predictions from random forest, by plane
+classified <- data.frame(adshex = classify$adshex, class = prediction)
+```
+
+```{r, warning=FALSE, message=FALSE}
+# summarize to see how many planes classified as candidate surveillance aircraft
+classified_summary <- classified %>%
+  group_by(class) %>%
+  summarize(count=n())
+print(classified_summary)
+```
+
+The output shows that the model classified 69 planes as likely surveillance aircraft. Given the likelihood of some misclassification, we ran the analysis again to calculate a probability that each plane matched the `surveil` and `other` classes. We sorted them in descending order of probability of membership of the `surveil` class, and selected the top 100 for further investigation, including the variable `squawk_1` in the data, as some specific codes contain useful information --- for example those restricted for use by federal law enforcement.
+
+```{r, results="hide", warning=FALSE, message=FALSE}
+# run the random forest model again to get probabilities of membership of each class, rather than binary classification
+prediction_probs <- as.data.frame(predict(fit, classify, type = "prob"))
+
+# create data frame with predictions from random forest, by plane
+classified_probs <- bind_cols(as.data.frame(classify$adshex), prediction_probs) %>%
+  mutate(adshex = classify$adshex) %>%
+  select(2:4) %>%
+  arrange(desc(surveil)) %>%
+  inner_join(planes) %>%
+  select(1:3,squawk_1)
+
+# select the top 100 candidates
+candidates <- head(classified_probs, 100)
+```
+
+Before exporting, we joined to data from the FAA registration database, to include where available the planes' registration numbers and the organizations they are registered to.
+
+```{r, results="hide", warning=FALSE, message=FALSE}
+# load and process FAA registration data (here using download from Jul 25, 2017, to reflect current registration)
+
+faa <- read_csv("data/ReleasableAircraft/master.csv") %>%
+  select(1,7,34)
+names(faa) <- c("n_number","name","adshex")
+faa <- faa %>%
+  mutate(reg = paste0("N",n_number)) %>%
+  select(2:4)
+
+# join to FAA registration data to obtain information on each plane's registration numbers and registered owners/operators
+candidates <- left_join(candidates,faa, by="adshex")
+
+# export data
+write_csv(candidates, "data/candidates.csv", na="")
+```
+
+The file `candidates_annotated.csv` includes some notes on these 100 aircraft, following further research and reporting.
+
+
