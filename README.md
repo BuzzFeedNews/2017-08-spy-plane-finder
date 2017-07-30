@@ -1,6 +1,6 @@
 # Here's How BuzzFeed News Trained A Computer To Search For Hidden Spy Planes
 
-[R](https://www.r-project.org/) code to reproduce the analysis underlying this August x, 2017 [BuzzFeed News article](https://www.buzzfeed.com/peteraldhous/hidden-spy-planes) on using machine learning to identify candidate surveillance aircraft from flight tracking data.
+[R](https://www.r-project.org/) code to reproduce the analysis underlying this August 4, 2017 [BuzzFeed News article](https://www.buzzfeed.com/peteraldhous/hidden-spy-planes) on using machine learning to identify candidate surveillance aircraft from flight tracking data.
 
 ## Methodology/Code
 
