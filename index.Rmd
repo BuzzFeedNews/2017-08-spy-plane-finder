@@ -102,7 +102,7 @@ One useful feature of the random forest is that it is possible to see which of t
 varImpPlot(fit, pch = 19, main = "Importance of variables", color = "blue", cex = 0.7)
 ```
 
-`MeanDecreaseAccuracy` measures the overall decrease on accurancy of the model if each variable is removed. `MeanDecreaseGini` measures the extent to which each variable plays a role in partitioning the data into the defined classes.
+`MeanDecreaseAccuracy` measures the overall decrease in accurancy of the model if each variable is removed. `MeanDecreaseGini` measures the extent to which each variable plays a role in partitioning the data into the defined classes.
 
 So these two charts show that the `steer1` and `steer2` variables, quantifying the frequency of turning hard to the left, and `squawk_1`, the most common squawk code broadcast by a plane's transponder, were the most important to the model.
 
