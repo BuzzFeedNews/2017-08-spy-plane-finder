@@ -7,7 +7,7 @@ output: html_document
 knitr::opts_chunk$set(out.width="750px", dpi=300)
 ```
 
-Data and [R](https://www.r-project.org/) code for the analysis supporting this [August 4, 2017 BuzzFeed News post](https://www.buzzfeed.com/peteraldhous/hidden-spy-planes) on identifying candidate surveillance aircraft. Supporting files are in [this GitHub repository](https://github.com/BuzzFeedNews/2017-08-spy-plane-finder).
+Data and [R](https://www.r-project.org/) code for the analysis supporting this [August 4, 2017 BuzzFeed News post](https://www.buzzfeed.com/peteraldhous/hidden-spy-planes) on identifying potential surveillance aircraft. Supporting files are in [this GitHub repository](https://github.com/BuzzFeedNews/2017-08-spy-plane-finder).
 
 ## Data
 
@@ -49,6 +49,7 @@ Finally, we calculated the following variables for each of the aircraft in the l
 - `speed1`,`speed2`,`speed3`,`speed4`,`speed5` Proportion of `speed` values recorded for the aircraft falling into each of five quantiles recorded for `speed` for the sample of 500 planes.
 - `altitude1`,`altitude2`,`altitude3`,`altitude4`,`altitude5` Proportion of `altitude` values recorded for the aircraft falling into each of five quantiles recorded for `altitude` for the sample of 500 planes.
 - `steer1`,`steer2`,`steer3`,`steer4`,`steer5`,`steer6`,`steer7`,`steer8` Proportion of `steer` values for each aircraft falling into bins set manually, after observing the distribution for the sample of 500 planes, using the breaks: -180, -25, -10, -1, 0, 1, 22, 45, 180.
+- `flights` Total number of flight segments for each plane.
 - `squawk_1` Squawk code used most commonly by the aircraft.
 - `observations` Total number of transponder detections for each plane.
 - `type` Aircraft manufacter and model, if identified, else `unknown`.
@@ -88,8 +89,10 @@ We then trained the random forest algorithm using this data.
 set.seed(415)
 
 # train the random forest
-fit <- randomForest(as.factor(class) ~ duration1 + duration2 + duration3 + duration4 + duration5 + boxes1 + boxes2 + boxes3 + boxes4 + boxes5 + speed1 + speed2 + speed3 + speed4 + speed5 + altitude1 + altitude2 + altitude3 + altitude4 + altitude5 + steer1 + steer2 + steer3 + steer4 + steer5 + steer6 + steer7 + steer8 + flights + squawk_1 + observations + type2, 
-                     data=train, importance=TRUE, ntree=2000)
+fit <- randomForest(as.factor(class) ~ duration1 + duration2 + duration3 + duration4 + duration5 + boxes1 + boxes2 + boxes3 + boxes4 + boxes5 + speed1 + speed2 + speed3 + speed4 + speed5 + altitude1 + altitude2 + altitude3 + altitude4 + altitude5 + steer1 + steer2 + steer3 + steer4 + steer5 + steer6 + steer7 + steer8 + flights + squawk_1 + observations + type2,
+                    data=train, 
+                    importance=TRUE,
+                    ntree=2000)
 ```
 
 One useful feature of the random forest is that it is possible to see which of the input variables are most important to the trained model. 
@@ -110,9 +113,9 @@ We then examined the model's performance, from its estimated errors in classifyi
 print(fit)
 ```
 
-This output shows that overall, the estimated classification error rate was 3.7%. For `other` planes, the estimated error rate was vanishingly low. However for the target `surveil` class, representing likely surveillance aircraft, the estimated error rate was 20.6%. We experimented with simplifying the model, removing some of the less important import variables, but that did not appreciably improve its performance.
+This output shows that overall, the estimated classification error rate was 3.7%. For `other` planes, the estimated error rate was vanishingly low. However for the target `surveil` class, representing likely surveillance aircraft, the estimated error rate was 20.6%. We experimented with simplifying the model, removing some of the less important variables, but that did not appreciably improve its performance.
 
-We then used the model to classify all of the planes in the data, after first removing the planes used in training data and a list of known federal law enforcement aircraft, which are in the file `feds.csv`.
+We then used the model to classify all of the planes in the data, after first removing the planes used in training data and a list of known federal law enforcement aircraft, which are identified in the file `feds.csv`.
 
 ```{r, results="hide", warning=FALSE, message=FALSE}
 # load data on known federal planes
@@ -137,7 +140,7 @@ classified_summary <- classified %>%
 print(classified_summary)
 ```
 
-The output shows that the model classified 69 planes as likely surveillance aircraft. Given the likelihood of some misclassification, we ran the analysis again to calculate a probability that each plane matched the `surveil` and `other` classes. We sorted them in descending order of probability of membership of the `surveil` class, and selected the top 100 for further investigation, including the variable `squawk_1` in the data, as some specific codes contain useful information --- for example those restricted for use by federal law enforcement.
+The output shows that the model classified 69 planes as likely surveillance aircraft. Given the likelihood of some misclassification, we ran the analysis again to calculate a probability that each plane matched the `surveil` and `other` classes. We sorted them in descending order of probability of membership of the `surveil` class, and selected the top 100 for further investigation, including the variable `squawk_1` in the data, as some specific codes contain [useful information](https://en.wikipedia.org/wiki/Transponder_(aeronautics)#Code_assignments) --- for example those restricted for use by federal law enforcement.
 
 ```{r, results="hide", warning=FALSE, message=FALSE}
 # run the random forest model again to get probabilities of membership of each class, rather than binary classification
@@ -155,7 +158,7 @@ classified_probs <- bind_cols(as.data.frame(classify$adshex), prediction_probs) 
 candidates <- head(classified_probs, 100)
 ```
 
-Before exporting, we joined to data from the FAA registration database, to include where available the planes' registration numbers and the organizations they are registered to.
+Before exporting, we joined to data from the [FAA aircraft registration database](https://www.faa.gov/licenses_certificates/aircraft_certification/aircraft_registry/releasable_aircraft_download/), to include where available the planes' registration numbers and the organizations they are registered to.
 
 ```{r, results="hide", warning=FALSE, message=FALSE}
 # load and process FAA registration data (here using download from Jul 25, 2017, to reflect current registration)

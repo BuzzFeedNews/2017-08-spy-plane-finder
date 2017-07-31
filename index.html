@@ -120,7 +120,7 @@ $(document).ready(function () {
 </div>
 
 
-<p>Data and <a href="https://www.r-project.org/">R</a> code for the analysis supporting this <a href="https://www.buzzfeed.com/peteraldhous/hidden-spy-planes">August 4, 2017 BuzzFeed News post</a> on identifying candidate surveillance aircraft. Supporting files are in <a href="https://github.com/BuzzFeedNews/2017-08-spy-plane-finder">this GitHub repository</a>.</p>
+<p>Data and <a href="https://www.r-project.org/">R</a> code for the analysis supporting this <a href="https://www.buzzfeed.com/peteraldhous/hidden-spy-planes">August 4, 2017 BuzzFeed News post</a> on identifying potential surveillance aircraft. Supporting files are in <a href="https://github.com/BuzzFeedNews/2017-08-spy-plane-finder">this GitHub repository</a>.</p>
 <div id="data" class="section level2">
 <h2>Data</h2>
 <p>BuzzFeed News obtained more than four months of aircraft transponder detections from the plane tracking website <a href="https://www.flightradar24.com">Flightradar24</a>, covering August 17 to December 31, 2015 <a href="http://www.timeanddate.com/time/aboututc.html">UTC</a>, containing all data displayed on the site within a bounding box encompassing the continental United States, Alaska, Hawaii, and Puerto Rico.</p>
@@ -158,6 +158,7 @@ $(document).ready(function () {
 <li><code>speed1</code>,<code>speed2</code>,<code>speed3</code>,<code>speed4</code>,<code>speed5</code> Proportion of <code>speed</code> values recorded for the aircraft falling into each of five quantiles recorded for <code>speed</code> for the sample of 500 planes.</li>
 <li><code>altitude1</code>,<code>altitude2</code>,<code>altitude3</code>,<code>altitude4</code>,<code>altitude5</code> Proportion of <code>altitude</code> values recorded for the aircraft falling into each of five quantiles recorded for <code>altitude</code> for the sample of 500 planes.</li>
 <li><code>steer1</code>,<code>steer2</code>,<code>steer3</code>,<code>steer4</code>,<code>steer5</code>,<code>steer6</code>,<code>steer7</code>,<code>steer8</code> Proportion of <code>steer</code> values for each aircraft falling into bins set manually, after observing the distribution for the sample of 500 planes, using the breaks: -180, -25, -10, -1, 0, 1, 22, 45, 180.</li>
+<li><code>flights</code> Total number of flight segments for each plane.</li>
 <li><code>squawk_1</code> Squawk code used most commonly by the aircraft.</li>
 <li><code>observations</code> Total number of transponder detections for each plane.</li>
 <li><code>type</code> Aircraft manufacter and model, if identified, else <code>unknown</code>.</li>
@@ -189,8 +190,10 @@ train &lt;- read_csv(&quot;data/train.csv&quot;) %&gt;%
 set.seed(415)
 
 # train the random forest
-fit &lt;- randomForest(as.factor(class) ~ duration1 + duration2 + duration3 + duration4 + duration5 + boxes1 + boxes2 + boxes3 + boxes4 + boxes5 + speed1 + speed2 + speed3 + speed4 + speed5 + altitude1 + altitude2 + altitude3 + altitude4 + altitude5 + steer1 + steer2 + steer3 + steer4 + steer5 + steer6 + steer7 + steer8 + flights + squawk_1 + observations + type2, 
-                     data=train, importance=TRUE, ntree=2000)</code></pre>
+fit &lt;- randomForest(as.factor(class) ~ duration1 + duration2 + duration3 + duration4 + duration5 + boxes1 + boxes2 + boxes3 + boxes4 + boxes5 + speed1 + speed2 + speed3 + speed4 + speed5 + altitude1 + altitude2 + altitude3 + altitude4 + altitude5 + steer1 + steer2 + steer3 + steer4 + steer5 + steer6 + steer7 + steer8 + flights + squawk_1 + observations + type2,
+                    data=train, 
+                    importance=TRUE,
+                    ntree=2000)</code></pre>
 <p>One useful feature of the random forest is that it is possible to see which of the input variables are most important to the trained model.</p>
 <pre class="r"><code># look at which variables are important in model
 varImpPlot(fit, pch = 19, main = &quot;Importance of variables&quot;, color = &quot;blue&quot;, cex = 0.7)</code></pre>
@@ -212,8 +215,8 @@ print(fit)</code></pre>
 ##         other surveil class.error
 ## other     498       2   0.0040000
 ## surveil    20      77   0.2061856</code></pre>
-<p>This output shows that overall, the estimated classification error rate was 3.7%. For <code>other</code> planes, the estimated error rate was vanishingly low. However for the target <code>surveil</code> class, representing likely surveillance aircraft, the estimated error rate was 20.6%. We experimented with simplifying the model, removing some of the less important import variables, but that did not appreciably improve its performance.</p>
-<p>We then used the model to classify all of the planes in the data, after first removing the planes used in training data and a list of known federal law enforcement aircraft, which are in the file <code>feds.csv</code>.</p>
+<p>This output shows that overall, the estimated classification error rate was 3.7%. For <code>other</code> planes, the estimated error rate was vanishingly low. However for the target <code>surveil</code> class, representing likely surveillance aircraft, the estimated error rate was 20.6%. We experimented with simplifying the model, removing some of the less important variables, but that did not appreciably improve its performance.</p>
+<p>We then used the model to classify all of the planes in the data, after first removing the planes used in training data and a list of known federal law enforcement aircraft, which are identified in the file <code>feds.csv</code>.</p>
 <pre class="r"><code># load data on known federal planes
 feds &lt;- read_csv(&quot;data/feds.csv&quot;)
 
@@ -236,7 +239,7 @@ print(classified_summary)</code></pre>
 ##    &lt;fctr&gt; &lt;int&gt;
 ## 1   other 19091
 ## 2 surveil    69</code></pre>
-<p>The output shows that the model classified 69 planes as likely surveillance aircraft. Given the likelihood of some misclassification, we ran the analysis again to calculate a probability that each plane matched the <code>surveil</code> and <code>other</code> classes. We sorted them in descending order of probability of membership of the <code>surveil</code> class, and selected the top 100 for further investigation, including the variable <code>squawk_1</code> in the data, as some specific codes contain useful information — for example those restricted for use by federal law enforcement.</p>
+<p>The output shows that the model classified 69 planes as likely surveillance aircraft. Given the likelihood of some misclassification, we ran the analysis again to calculate a probability that each plane matched the <code>surveil</code> and <code>other</code> classes. We sorted them in descending order of probability of membership of the <code>surveil</code> class, and selected the top 100 for further investigation, including the variable <code>squawk_1</code> in the data, as some specific codes contain <a href="https://en.wikipedia.org/wiki/Transponder_(aeronautics)#Code_assignments">useful information</a> — for example those restricted for use by federal law enforcement.</p>
 <pre class="r"><code># run the random forest model again to get probabilities of membership of each class, rather than binary classification
 prediction_probs &lt;- as.data.frame(predict(fit, classify, type = &quot;prob&quot;))
 
@@ -250,7 +253,7 @@ classified_probs &lt;- bind_cols(as.data.frame(classify$adshex), prediction_prob
 
 # select the top 100 candidates
 candidates &lt;- head(classified_probs, 100)</code></pre>
-<p>Before exporting, we joined to data from the FAA registration database, to include where available the planes’ registration numbers and the organizations they are registered to.</p>
+<p>Before exporting, we joined to data from the <a href="https://www.faa.gov/licenses_certificates/aircraft_certification/aircraft_registry/releasable_aircraft_download/">FAA aircraft registration database</a>, to include where available the planes’ registration numbers and the organizations they are registered to.</p>
 <pre class="r"><code># load and process FAA registration data (here using download from Jul 25, 2017, to reflect current registration)
 
 faa &lt;- read_csv(&quot;data/faa-registration.csv&quot;) %&gt;%
