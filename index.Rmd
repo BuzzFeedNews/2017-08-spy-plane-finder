@@ -1,5 +1,5 @@
 ---
-title: "Here's How BuzzFeed News Trained A Computer To Search For Hidden Spy Planes"
+title: "BuzzFeed News Trained A Computer To Search For Hidden Spy Planes. This Is What We Found."
 output: html_document
 ---
 
