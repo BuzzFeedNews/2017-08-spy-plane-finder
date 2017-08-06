@@ -7,7 +7,7 @@ output: html_document
 knitr::opts_chunk$set(out.width="750px", dpi=300)
 ```
 
-Data and [R](https://www.r-project.org/) code for the analysis supporting this [August 4, 2017 BuzzFeed News post](https://www.buzzfeed.com/peteraldhous/hidden-spy-planes) on identifying potential surveillance aircraft. Supporting files are in [this GitHub repository](https://github.com/BuzzFeedNews/2017-08-spy-plane-finder).
+Data and [R](https://www.r-project.org/) code for the analysis supporting this [August 7, 2017 BuzzFeed News post](https://www.buzzfeed.com/peteraldhous/hidden-spy-planes) on identifying potential surveillance aircraft. Supporting files are in [this GitHub repository](https://github.com/BuzzFeedNews/2017-08-spy-plane-finder).
 
 ## Data
 
