@@ -113,7 +113,9 @@ We then examined the model's performance, from its estimated errors in classifyi
 print(fit)
 ```
 
-This output shows that overall, the estimated classification error rate was 3.7%. For `other` planes, the estimated error rate was vanishingly low. However for the target `surveil` class, representing likely surveillance aircraft, the estimated error rate was 20.6%. We experimented with simplifying the model, removing some of the less important variables, but that did not appreciably improve its performance.
+This output shows that overall, the estimated classification error rate was 3.7%. For the target `surveil` class, representing likely surveillance aircraft, the estimated error rate was 20.6%. We experimented with simplifying the model, removing some of the less important variables, but that did not appreciably improve its performance.
+
+(A more thorough approach to testing and refining a model's performance would involve splitting the training dataset, and keeping a portion to one side to evaluate the trained model. However, for our goal of providing an initial screen for potential surveillance aircraft, to inform subsequent reporting, the initial model was adequate.)
 
 We then used the model to classify all of the planes in the data, after first removing the planes used in training data and a list of known federal law enforcement aircraft, which are identified in the file `feds.csv`.
 
